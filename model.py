@@ -1,7 +1,7 @@
 import math
 import torch
 from torch import nn as nn
-from torch import Tensor
+from torch import Tensor, device
 
 
 class PositionalEncoding(nn.Module):
@@ -32,6 +32,7 @@ class PoetryNet(nn.Module):
     def __init__(
         self,
         vocab_size: int,
+        device: device,
         *,
         embed_size: int = 512,
         n_head=8,
@@ -39,7 +40,8 @@ class PoetryNet(nn.Module):
         hidden_size=512
     ) -> None:
         super().__init__()
-        self.embed = nn.Embedding(vocab_size, embed_size)
+        self.embed = nn.Embedding(vocab_size, embed_size, device=device)
+        self.sq = math.sqrt(self.embed_size)
         self.embed_size = embed_size
         self.transformer = nn.Transformer(
             embed_size,
@@ -48,13 +50,43 @@ class PoetryNet(nn.Module):
             num_encoder_layers=n_layer,
             batch_first=True,
             dim_feedforward=hidden_size,
+            device=device,
         )
         self.liner = nn.Linear(embed_size, vocab_size)
         self.positional_encoding = PositionalEncoding(embed_size)
 
-    def forward(self, src: Tensor, tgt: Tensor, src_mask: Tensor):
-        src = self.embed(src) * math.sqrt(self.embed_size)
+    def forward(
+        self,
+        src: Tensor,
+        tgt: Tensor,
+        src_mask: Tensor,
+        tgt_mask: Tensor,
+        src_padding_mask: Tensor,
+        tgt_padding_mask: Tensor,
+    ):
+        src = self.embed(src) * self.sq
         src = self.positional_encoding(src)
 
-        self.transformer
-        pass
+        tgt = self.embed(tgt) * self.sq
+        tgt = self.positional_encoding(tgt)
+
+        out = self.transformer.forward(
+            src,
+            tgt,
+            src_mask,
+            tgt_mask,
+            src_key_padding_mask=src_padding_mask,
+            tgt_key_padding_mask=tgt_padding_mask,
+        )
+        out = self.liner.forward(out)
+        return out
+
+    def encode(self, src: Tensor) -> Tensor:
+        return self.transformer.encoder.forward(
+            self.positional_encoding.forward(self.embed(src) * self.sq)
+        )
+
+    def decode(self, tgt: Tensor, memory: Tensor) -> Tensor:
+        return self.transformer.decoder.forward(
+            self.positional_encoding.forward(self.embed(tgt) * self.sq), memory
+        )
