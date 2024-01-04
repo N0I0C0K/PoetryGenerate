@@ -20,7 +20,7 @@ class PoetryData(Dataset[tuple[torch.Tensor, torch.Tensor]]):
         idx = 3
         # 绿蔓如藤不用栽,淡青花遶竹篱开.披衣向晓还堪爱,忽见蜻蜓带露来.
         self.device = device
-        with open(poetry_file, "r") as file:
+        with open(poetry_file, "r", encoding="utf-8") as file:
             while len(self.corpus) < max_lines or max_lines == -1:
                 line = file.readline().strip(" \n\r")
                 if len(line) == 0:
@@ -39,7 +39,7 @@ class PoetryData(Dataset[tuple[torch.Tensor, torch.Tensor]]):
         t.extend(self.word2idx[x] for x in words[: self.token_length - 2])
         t.append(1)
         t.extend(2 for _ in range(max(0, self.token_length - len(t))))
-        return torch.LongTensor(t, device=self.device)
+        return torch.LongTensor(t).to(self.device)
 
     def get_token_mask(self, token: torch.Tensor) -> torch.Tensor:
         return (token == 2).to(self.device)
@@ -49,4 +49,4 @@ class PoetryData(Dataset[tuple[torch.Tensor, torch.Tensor]]):
 
     def __getitem__(self, index) -> tuple[torch.Tensor, torch.Tensor]:
         token = self.word2token(self.corpus[index])
-        return (token, token[1:])
+        return (token[:-1], token[1:])

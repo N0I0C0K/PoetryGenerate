@@ -13,16 +13,16 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(
             torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
         )
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
         self.register_buffer("pe", pe)
 
     def forward(self, x: torch.Tensor):
         """
         Arguments:
-            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
+            x: Tensor, shape ``[batch_size, seq_len, embedding_dim]``
         """
         x = x + self.pe[:, : x.size(1)]
         return self.dropout(x)
@@ -41,8 +41,8 @@ class PoetryNet(nn.Module):
     ) -> None:
         super().__init__()
         self.embed = nn.Embedding(vocab_size, embed_size, device=device)
-        self.sq = math.sqrt(self.embed_size)
         self.embed_size = embed_size
+        self.sq = math.sqrt(self.embed_size)
         self.transformer = nn.Transformer(
             embed_size,
             nhead=n_head,
@@ -59,7 +59,6 @@ class PoetryNet(nn.Module):
         self,
         src: Tensor,
         tgt: Tensor,
-        src_mask: Tensor,
         tgt_mask: Tensor,
         src_padding_mask: Tensor,
         tgt_padding_mask: Tensor,
@@ -73,8 +72,7 @@ class PoetryNet(nn.Module):
         out = self.transformer.forward(
             src,
             tgt,
-            src_mask,
-            tgt_mask,
+            tgt_mask=tgt_mask,
             src_key_padding_mask=src_padding_mask,
             tgt_key_padding_mask=tgt_padding_mask,
         )
@@ -87,6 +85,9 @@ class PoetryNet(nn.Module):
         )
 
     def decode(self, tgt: Tensor, memory: Tensor) -> Tensor:
-        return self.transformer.decoder.forward(
-            self.positional_encoding.forward(self.embed(tgt) * self.sq), memory
+        return self.liner.forward(
+            self.transformer.decoder.forward(
+                self.positional_encoding.forward(self.embed(tgt) * self.sq),
+                memory,
+            )
         )
