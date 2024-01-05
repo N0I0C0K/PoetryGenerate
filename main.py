@@ -25,7 +25,7 @@ class PoetryGen:
         self.train_dataloader = DataLoader(train_data, batch_size, True)
         self.test_dataloader = DataLoader(test_data, batch_size, True)
 
-        self.net = PoetryNet(self.vocab_size, self.device, embed_size=128).to(
+        self.net = PoetryNet(self.vocab_size, self.device, embed_size=512).to(
             self.device
         )
         self.optimizer = torch.optim.AdamW(self.net.parameters(), lr)
@@ -44,6 +44,8 @@ class PoetryGen:
             t = input(
                 "choose check point to load, default is the last one, n to unload>"
             )
+            if t == "":
+                t = -1
             if t != "n":
                 self.load_checkpoint(files[int(t)])
 
@@ -75,10 +77,22 @@ class PoetryGen:
 
     def generate(self):
         self.net.eval()
-        src = torch.LongTensor([[0]]).to(self.device)
+        src = torch.LongTensor([[0]]).to(
+            self.device
+        )  # self.dataset.word2token("我").unsqueeze(0)
         tgt = torch.LongTensor([[0]]).to(self.device)
+        res = []
+        for i in range(48):
+            memo = self.net.encode(tgt)
+            out = self.net.decode(tgt, memo)
+            next_word = out.argmax(2)
+            if next_word[0][-1] == 1:
+                break
+            # tgt = torch.cat((tgt, ))
+            res.append(next_word[0][-1].item())
+            tgt = torch.cat((tgt, next_word[:, -1:]), 1)
 
-        self.net.encode(src)
+        return self.dataset.token2word(res)
 
     def train_epoch(self):
         self.net.train()
@@ -150,12 +164,13 @@ class PoetryGen:
             self.train_epoch()
             self.evaluation()
             self.epoch += 1
-
+            print(self.generate())
             self.save_checkpoint()
 
 
 def main():
     model = PoetryGen()
+    # print(model.generate())
     model.training()
 
 

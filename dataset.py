@@ -41,6 +41,9 @@ class PoetryData(Dataset[tuple[torch.Tensor, torch.Tensor]]):
         t.extend(2 for _ in range(max(0, self.token_length - len(t))))
         return torch.LongTensor(t).to(self.device)
 
+    def token2word(self, tokens: list[int]) -> str:
+        return "".join(self.idx2word[x] for x in tokens)
+
     def get_token_mask(self, token: torch.Tensor) -> torch.Tensor:
         return (token == 2).to(self.device)
 
