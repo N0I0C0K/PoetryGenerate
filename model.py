@@ -73,15 +73,21 @@ class PoetryNet(nn.Module):
             src,
             tgt,
             tgt_mask=tgt_mask,
+            memory_key_padding_mask=src_padding_mask,
             src_key_padding_mask=src_padding_mask,
             tgt_key_padding_mask=tgt_padding_mask,
         )
         out = self.liner.forward(out)
         return out
 
-    def encode(self, src: Tensor) -> Tensor:
+    def encode(
+        self, src: Tensor, noise: bool = True, noise_intensity: float = 0.5
+    ) -> Tensor:
+        embeded = self.embed.forward(src)
+        if noise:
+            embeded += torch.rand_like(embeded) * noise_intensity
         return self.transformer.encoder.forward(
-            self.positional_encoding.forward(self.embed(src) * self.sq)
+            self.positional_encoding.forward(embeded * self.sq)
         )
 
     def decode(self, tgt: Tensor, memory: Tensor) -> Tensor:

@@ -19,7 +19,7 @@ class PoetryData(Dataset[tuple[torch.Tensor, torch.Tensor]]):
         self.token_length = token_length
         self.idx2word = ["<bos>", "<eos>", "<pad>"]
         self.word2idx = {v: k for k, v in enumerate(self.idx2word)}
-        idx = 3
+        idx = len(self.idx2word)
         loaded_lines = 0
         # 绿蔓如藤不用栽,淡青花遶竹篱开.披衣向晓还堪爱,忽见蜻蜓带露来.
         self.device = device
