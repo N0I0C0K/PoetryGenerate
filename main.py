@@ -17,7 +17,7 @@ class PoetryGen:
         #     torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         # )
         self.device = torch.device("cuda:0")
-        self.dataset = PoetryData(self.device, max_lines=12000)
+        self.dataset = PoetryData(self.device, max_lines=3000)
         self.vocab_size = self.dataset.vocab_size
         train_data, test_data = random_split(
             self.dataset, [len(self.dataset) - 1000, 1000]
@@ -25,7 +25,7 @@ class PoetryGen:
         self.train_dataloader = DataLoader(train_data, batch_size, True)
         self.test_dataloader = DataLoader(test_data, batch_size, True)
 
-        self.net = PoetryNet(self.vocab_size, self.device, embed_size=512).to(
+        self.net = PoetryNet(self.vocab_size, self.device, embed_size=128).to(
             self.device
         )
         self.optimizer = torch.optim.AdamW(self.net.parameters(), lr)
@@ -77,13 +77,11 @@ class PoetryGen:
 
     def generate(self):
         self.net.eval()
-        src = torch.LongTensor([[0]]).to(
-            self.device
-        )  # self.dataset.word2token("我").unsqueeze(0)
+        src = self.dataset.word2token("风细孤帆雨后低").unsqueeze(0)
         tgt = torch.LongTensor([[0]]).to(self.device)
+        memo = self.net.encode(src)
         res = []
         for i in range(48):
-            memo = self.net.encode(tgt)
             out = self.net.decode(tgt, memo)
             next_word = out.argmax(2)
             if next_word[0][-1] == 1:
@@ -94,28 +92,28 @@ class PoetryGen:
 
         return self.dataset.token2word(res)
 
+    def forward_net(self, src: Tensor, tgt: Tensor):
+        src, tgt = src.to(self.device), tgt.to(self.device)
+        src_mask = (src == 2).to(self.device)
+
+        dec_tgt = tgt[:, :-1]
+        dec_tgt_mask = (dec_tgt == 2).to(self.device)
+        tgt_mask = torch.nn.Transformer.generate_square_subsequent_mask(
+            dec_tgt.size(1), self.device
+        )
+
+        out = self.net.forward(src, dec_tgt, tgt_mask, src_mask, dec_tgt_mask)
+        return out
+
     def train_epoch(self):
         self.net.train()
 
         # ignore <pad> which index is 2
         loss_f = self.loss_f  # torch.nn.CrossEntropyLoss(ignore_index=2)
 
-        def get_padding_mask(tokens: Tensor) -> Tensor:
-            return (tokens == 2).to(self.device)
-
         voacb_size = self.dataset.vocab_size
         for i, (src, tgt) in enumerate(self.train_dataloader):
-            src, tgt = src.to(self.device), tgt.to(self.device)
-            src_mask = get_padding_mask(src)
-
-            dec_tgt = tgt[:, :-1]
-            dec_tgt_mask = get_padding_mask(dec_tgt)
-
-            tgt_mask = torch.nn.Transformer.generate_square_subsequent_mask(
-                dec_tgt.size(1), self.device
-            )
-
-            out = self.net.forward(src, dec_tgt, tgt_mask, src_mask, dec_tgt_mask)
+            out = self.forward_net(src, tgt)
             # out = torch.max(out, 2).indices
             loss = loss_f.forward(out.reshape(-1, voacb_size), tgt[:, 1:].flatten())
 
@@ -125,31 +123,19 @@ class PoetryGen:
 
             if i % 40 == 0:
                 print(f"epoch={self.epoch} loss={loss.item():.4f} {i}")
+                # print(self.dataset.token2word(tgt[0]))
+                # print(self.dataset.token2word(out[0].argmax(1).tolist()))
 
     def evaluation(self):
         self.net.eval()
 
         loss_f = self.loss_f
-
-        def get_padding_mask(tokens: Tensor) -> Tensor:
-            return (tokens == 2).to(self.device)
-
         voacb_size = self.dataset.vocab_size
 
         loss_a = 0
         with torch.no_grad():
             for i, (src, tgt) in enumerate(self.test_dataloader):
-                src, tgt = src.to(self.device), tgt.to(self.device)
-                src_mask = get_padding_mask(src)
-
-                dec_tgt = tgt[:, :-1]
-                dec_tgt_mask = get_padding_mask(dec_tgt)
-
-                tgt_mask = torch.nn.Transformer.generate_square_subsequent_mask(
-                    dec_tgt.size(1), self.device
-                )
-
-                out = self.net.forward(src, dec_tgt, tgt_mask, src_mask, dec_tgt_mask)
+                out = self.forward_net(src, tgt)
                 # out = torch.max(out, 2).indices
                 loss = loss_f.forward(out.reshape(-1, voacb_size), tgt[:, 1:].flatten())
                 loss_a += loss.item()
@@ -164,14 +150,14 @@ class PoetryGen:
             self.train_epoch()
             self.evaluation()
             self.epoch += 1
-            print(self.generate())
             self.save_checkpoint()
+            print(self.generate())
 
 
 def main():
     model = PoetryGen()
     # print(model.generate())
-    model.training()
+    model.training(1024)
 
 
 if __name__ == "__main__":
