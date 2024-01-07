@@ -29,8 +29,8 @@ class PoetryGen:
             self.device
         )
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr)
-        self.optimizer_scheduler = torch.optim.lr_scheduler.StepLR(
-            self.optimizer, step_size=40, gamma=0.5
+        self.optimizer_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            self.optimizer, 256
         )
 
         self.loss_f = torch.nn.CrossEntropyLoss(ignore_index=2)
@@ -77,6 +77,7 @@ class PoetryGen:
         self.epoch = ckpt["epoch"]
 
         self.loaded_checkpoint_file = file
+        self.optimizer_scheduler.last_epoch = self.epoch
         print(f"loaded check point: {file}, epoch: {self.epoch}")
 
     def generate_one(self, pre_sentence: str, start_words: str = ""):
@@ -212,7 +213,7 @@ class PoetryGen:
 def main():
     model = PoetryGen()
     # print(model.generate())
-    # while (s := input()) != "exit":
+    # while (s := input(">")) != "exit":
     #     print(model.generate(4, "床前明月光"))
     model.training(256)
 
