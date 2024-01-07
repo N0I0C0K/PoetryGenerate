@@ -81,7 +81,7 @@ class PoetryNet(nn.Module):
         return out
 
     def encode(
-        self, src: Tensor, noise: bool = True, noise_intensity: float = 0.5
+        self, src: Tensor, noise: bool = True, noise_intensity: float = 1
     ) -> Tensor:
         embeded = self.embed.forward(src)
         if noise:

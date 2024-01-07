@@ -213,9 +213,12 @@ class PoetryGen:
 def main():
     model = PoetryGen()
     # print(model.generate())
-    # while (s := input(">")) != "exit":
-    #     print(model.generate(4, "床前明月光"))
-    model.training(256)
+    while (s := input(">")) != "exit":
+        if s.find("/") != -1:
+            print(model.generate_by_start(s, "绿蔓如藤不用栽"))
+        else:
+            print(model.generate(4, s or "床前明月光"))
+    # model.training(256)
 
 
 if __name__ == "__main__":

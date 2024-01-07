@@ -9,4 +9,11 @@
 有两种生成模式
 
 1. 直接生成一首诗，输入风格输出整首诗
-2. 输入每一句诗的开头，输出藏头诗
+![style](img/style.png)
+1. 输入每一句诗的开头，输出藏头诗
+![head](img/head.png)
+
+
+## Data Source
+
+数据来源于[ChinesePoetryDataset](https://www.kaggle.com/datasets/qianboao/chinesepoetrydataset)，训练只采用了前5W行。
